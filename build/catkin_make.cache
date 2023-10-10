@@ -1,0 +1,2 @@
+offboard_py
+-DCATKIN_DEVEL_PREFIX=/home/paolo/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/paolo/catkin_ws/install -G Unix Makefiles
