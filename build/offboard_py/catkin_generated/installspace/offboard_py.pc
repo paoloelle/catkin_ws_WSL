@@ -3,6 +3,6 @@ prefix=/home/paolo/catkin_ws/install
 Name: offboard_py
 Description: Description of offboard_py
 Version: 0.0.0
-Cflags: 
+Cflags: -I${prefix}/include
 Libs: -L${prefix}/lib 
 Requires: 
