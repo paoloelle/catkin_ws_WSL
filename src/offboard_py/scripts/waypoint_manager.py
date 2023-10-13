@@ -14,6 +14,8 @@ waypointList = []
 waypointReceived = False # flag to check if waypoint list is received
 
 
+# prova per github
+
 
 def state_cb(msg):
     global current_state
