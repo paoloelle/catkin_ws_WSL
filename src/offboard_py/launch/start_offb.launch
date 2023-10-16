@@ -6,5 +6,5 @@
 
 	<!-- Our node to control the drone -->
 	<!-- <node pkg="offboard_py" type="offb_node.py" name="offb_node_py" required="true" output="screen" /> -->
-	<node pkg="offboard_py" type="waypoint_manager.py" name="offb_node_WPFollower" required="true" output="screen" />
+	<node pkg="offboard_py" type="waypoint_manager.py" name="waypoint_manager" required="true" output="screen" />
 </launch>

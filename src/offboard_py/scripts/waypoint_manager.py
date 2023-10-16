@@ -12,9 +12,8 @@ current_state = State()
 waypoint_index = 0
 waypointList = []
 waypointReceived = False # flag to check if waypoint list is received
+nextWaypoint = [0,0,0]
 
-
-# prova per github
 
 
 def state_cb(msg):
@@ -22,41 +21,46 @@ def state_cb(msg):
     current_state = msg
 
 
+#def waypointMATLAB_callback(data):
+#
+#    global waypointList
+#    global waypointReceived
+#    
+#    for index in range(1, len(data.poses)):
+#        waypointList.append([data.poses[index].position.x, data.poses[index].position.y, data.poses[index].position.z])
+#    
+#    #rospy.loginfo(str(waypointList))   
+#
+#    if waypointList:
+#        waypointReceived = True
+#        rospy.loginfo('Waypoint recived: ' + str(waypointReceived))
 
-def waypointMATLAB_callback(data):
 
-    global waypointList
-    global waypointReceived
-    
+def buildWPArray(data):
     for index in range(1, len(data.poses)):
         waypointList.append([data.poses[index].position.x, data.poses[index].position.y, data.poses[index].position.z])
-    
-    rospy.loginfo(str(waypointList))   
-
-    if waypointList:
-        waypointReceived = True
-        rospy.loginfo('Waypoint recived: ' + str(waypointReceived))
 
 
 def getNextWP(currentPosition, threshold):
 
     global waypoint_index
     global waypointList
+    global nextWaypoint
 
-    currentWaypoint = waypointList[waypoint_index]
+    try: 
+        currentWaypoint = waypointList[waypoint_index]
 
-    nextWaypoint = currentWaypoint
-    
-    try:
+        nextWaypoint = currentWaypoint
+
+
         if dist(currentPosition, currentWaypoint) < threshold: # compute euclidean 3D distance
-            if waypoint_index + 1 < len(waypointList):  
-                waypoint_index += 1              
-                nextWaypoint = waypointList[waypoint_index]
-                rospy.loginfo('Next waypoint: ' + str(nextWaypoint))             
+            #if waypoint_index + 1 < len(waypointList):  
+            waypoint_index += 1
+            nextWaypoint = waypointList[waypoint_index]
+            rospy.loginfo('Next waypoint: ' + str(nextWaypoint))             
 
-    except ValueError:
-        rospy.logwarn('No waypoint left')
-
+    except IndexError:
+        rospy.loginfo('No waypoint left')
     
     return nextWaypoint
 
@@ -69,6 +73,8 @@ def WP_callback(data):
         targetWP = getNextWP([data.pose.position.x,
                               data.pose.position.y,
                               data.pose.position.z], threshold=.2)          
+        
+        targetWP = [1, 1, 1]
 
         # Create a PoseStamped message
         pose_msg = PoseStamped()
@@ -83,8 +89,8 @@ def WP_callback(data):
 
         currentWaypoint_pub.publish(pose_msg)
 
-    else:
-        rospy.loginfo('Waiting for waypoint')
+    #else:
+    #    rospy.loginfo('Waiting for waypoint')
 
 if __name__ == '__main__':
 
@@ -94,24 +100,34 @@ if __name__ == '__main__':
 
         # subscribers
         state_sub = rospy.Subscriber("mavros/state", State, callback = state_cb)
-        getWP_sub = rospy.Subscriber("MATLAB_waypoint", PoseArray, callback=waypointMATLAB_callback)    
+        #getWP_sub = rospy.Subscriber("MATLAB_waypoint", PoseArray, callback=waypointMATLAB_callback)    
         position_sub = rospy.Subscriber('mavros/local_position/pose', PoseStamped, callback = WP_callback)
-
 
         
         # publisher
         currentWaypoint_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
         
         
+
+        
         rospy.wait_for_service("/mavros/cmd/arming")
         arming_client = rospy.ServiceProxy("mavros/cmd/arming", CommandBool) 
 
+
         rospy.wait_for_service("/mavros/set_mode")
-        set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)    
-        
+        set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)
+
+        waypointMessage = rospy.wait_for_message("/MATLAB_waypoint", PoseArray)
+        buildWPArray(waypointMessage)
+        rospy.loginfo("WP list: " + str(waypointList))
+        waypointReceived = True    
 
         # Setpoint publishing MUST be faster than 2Hz
         rate = rospy.Rate(20)
+
+         # Wait for Flight Controller connection
+        while(not rospy.is_shutdown() and not current_state.connected):
+            rate.sleep()
 
         offb_set_mode = SetModeRequest()
         offb_set_mode.custom_mode = 'OFFBOARD'
@@ -135,11 +151,9 @@ if __name__ == '__main__':
                     last_req = rospy.Time.now()
 
             rate.sleep()
-
     
-
         rospy.spin()
 
     except rospy.ROSInterruptException:
-        pass
+        rospy.logwarn("Node Interrupted")
 
