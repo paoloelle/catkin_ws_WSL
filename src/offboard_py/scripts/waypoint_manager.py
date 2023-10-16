@@ -12,7 +12,7 @@ current_state = State()
 waypoint_index = 0
 waypointList = []
 waypointReceived = False # flag to check if waypoint list is received
-nextWaypoint = [0,0,0]
+nextWaypoint = [0, 0, 0]
 
 
 
@@ -21,23 +21,8 @@ def state_cb(msg):
     current_state = msg
 
 
-#def waypointMATLAB_callback(data):
-#
-#    global waypointList
-#    global waypointReceived
-#    
-#    for index in range(1, len(data.poses)):
-#        waypointList.append([data.poses[index].position.x, data.poses[index].position.y, data.poses[index].position.z])
-#    
-#    #rospy.loginfo(str(waypointList))   
-#
-#    if waypointList:
-#        waypointReceived = True
-#        rospy.loginfo('Waypoint recived: ' + str(waypointReceived))
-
-
 def buildWPArray(data):
-    for index in range(1, len(data.poses)):
+    for index in range(len(data.poses)):
         waypointList.append([data.poses[index].position.x, data.poses[index].position.y, data.poses[index].position.z])
 
 
@@ -49,18 +34,16 @@ def getNextWP(currentPosition, threshold):
 
     try: 
         currentWaypoint = waypointList[waypoint_index]
-
         nextWaypoint = currentWaypoint
 
-
         if dist(currentPosition, currentWaypoint) < threshold: # compute euclidean 3D distance
-            #if waypoint_index + 1 < len(waypointList):  
             waypoint_index += 1
             nextWaypoint = waypointList[waypoint_index]
             rospy.loginfo('Next waypoint: ' + str(nextWaypoint))             
 
     except IndexError:
-        rospy.loginfo('No waypoint left')
+        pass
+
     
     return nextWaypoint
 
@@ -74,7 +57,7 @@ def WP_callback(data):
                               data.pose.position.y,
                               data.pose.position.z], threshold=.2)          
         
-        targetWP = [1, 1, 1]
+        
 
         # Create a PoseStamped message
         pose_msg = PoseStamped()
@@ -100,27 +83,23 @@ if __name__ == '__main__':
 
         # subscribers
         state_sub = rospy.Subscriber("mavros/state", State, callback = state_cb)
-        #getWP_sub = rospy.Subscriber("MATLAB_waypoint", PoseArray, callback=waypointMATLAB_callback)    
         position_sub = rospy.Subscriber('mavros/local_position/pose', PoseStamped, callback = WP_callback)
-
         
         # publisher
         currentWaypoint_pub = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
         
-        
 
-        
         rospy.wait_for_service("/mavros/cmd/arming")
         arming_client = rospy.ServiceProxy("mavros/cmd/arming", CommandBool) 
-
 
         rospy.wait_for_service("/mavros/set_mode")
         set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)
 
         waypointMessage = rospy.wait_for_message("/MATLAB_waypoint", PoseArray)
         buildWPArray(waypointMessage)
-        rospy.loginfo("WP list: " + str(waypointList))
+        rospy.loginfo("Waypoint list: " + str(waypointList))
         waypointReceived = True    
+
 
         # Setpoint publishing MUST be faster than 2Hz
         rate = rospy.Rate(20)
